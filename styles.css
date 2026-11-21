@@ -14,7 +14,7 @@ h1 span{display:block;font-size:.8rem;font-weight:500;color:#666;letter-spacing:
 .tag{margin:.35rem 0 0;color:#555}
 main{display:grid;gap:1rem;padding:0 1rem;max-width:40rem;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1rem}
-video{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover}
+video,#shot{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover}
 .controls{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem}
 button,.upload span{
   appearance:none;border:1px solid var(--ink);border-radius:999px;

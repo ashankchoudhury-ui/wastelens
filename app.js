@@ -34,7 +34,7 @@
 
   // MobileNet class keywords -> Guwahati disposal stream.
   var RULES = [
-    { c: "hz", keys: ["battery", "batteries", "cellphone", "mobile phone", "smartphone", "laptop", "computer", "keyboard", "mouse", "remote", "cable", "charger", "circuit", "tv", "television", "monitor", "lamp", "light bulb", "bulb", "thermometer", "paint", "aerosol", "pesticide", "medicine", "pill", "syringe", "needle", "mercury", "printer", "cartridge", "toner", "camera", "radio", "speaker", "headphone", "console", "keyboard"] },
+    { c: "haz", keys: ["battery", "batteries", "cellphone", "mobile phone", "smartphone", "laptop", "computer", "keyboard", "mouse", "remote", "cable", "charger", "circuit", "tv", "television", "monitor", "lamp", "light bulb", "bulb", "thermometer", "paint", "aerosol", "pesticide", "medicine", "pill", "syringe", "needle", "mercury", "printer", "cartridge", "toner", "camera", "radio", "speaker", "headphone", "console", "keyboard"] },
     { c: "dry", keys: ["bottle", "bottles", "can", "cans", "tin", "aluminum", "aluminium", "glass", "jar", "plastic", "paper", "cardboard", "carton", "newspaper", "magazine", "book", "notebook", "envelope", "bag", "packet", "packet", "wrapper", "foil", "tray", "cup", "container", "box", "steel", "metal", "wire", "coin", "cloth", "clothes", "shirt", "trousers", "shoe", "shoes", "toy", "pen", "pencil", "hanger", "comb", "toothbrush", "mirror", "ceramic", "pot", "pan", "utensil", "spoon", "fork", "knife", "straw", "lid", "cap", "tube", "bucket", "mug", "vase", "candle"] },
     { c: "wet", keys: ["banana", "leaf", "leaves", "apple", "orange", "mango", "fruit", "vegetable", "potato", "onion", "tomato", "food", "rice", "bread", "roti", "chapati", "fish", "meat", "chicken", "egg", "shell", "tea", "coffee", "leaf", "plant", "flower", "grass", "wood", "stick", "nut", "coconut", "rice", "grain", "bone", "corn", "peel", "scraps", "leftover", "cooked", "raw"] },
     { c: "land", keys: ["diaper", "sanitary", "napkin", "tissue", "towel", "cigarette", "ash", "dust", "sweepings", "ceramic", "mirror", "pyrex", "styrofoam", "thermocol", "multi-layer", "chip packet", "chocolate wrapper", "biscuit packet", "toffee", "polythene", "plastic bag", "carry bag", "glove", "mask", "sponge", "brush", "toothpaste tube", "razor", "ink", "glue", "tape", "rubber", "tyre", "tube"] }
@@ -48,6 +48,7 @@
 
   var el = {
     video: document.getElementById("view"),
+    shot: document.getElementById("shot"),
     canvas: document.getElementById("frame"),
     start: document.getElementById("start"),
     snap: document.getElementById("snap"),
@@ -65,6 +66,17 @@
   };
 
   function setStatus(msg) { el.status.textContent = msg; }
+
+  function showImage(src) {
+    el.shot.src = src;
+    el.shot.hidden = false;
+    el.video.hidden = true;
+  }
+
+  function showCamera() {
+    el.video.hidden = false;
+    el.shot.hidden = true;
+  }
 
   function loadModel() {
     if (model) return Promise.resolve(model);
@@ -89,11 +101,11 @@
         for (var j = 0; j < rule.keys.length; j++) {
           var k = rule.keys[j];
           if (name.indexOf(k) !== -1) {
-            var score = p.probability * (1 + (rule.keys.length - j) / 100);
+            // Prefer the highest-probability prediction, then the most specific keyword.
+            var score = p.probability * 100 + k.length;
             if (!seen[rule.c]) { seen[rule.c] = score; }
             else { seen[rule.c] = Math.max(seen[rule.c], score); }
             if (seen[rule.c] > best.score) { best = { c: rule.c, score: seen[rule.c], matched: k }; }
-            return;
           }
         }
       }
@@ -104,13 +116,15 @@
   function showResult(predictions) {
     var pick = pickCategory(predictions);
     var cat = CATEGORY[pick.c];
+    if (!cat) { pick = { c: "land", score: 0, matched: "" }; cat = CATEGORY.land; }
     var top = predictions[0];
     var conf = Math.round((top ? top.probability : 0) * 100);
 
     el.badge.textContent = cat.label;
     el.badge.className = "badge " + cat.badge;
     el.label.textContent = "Looks like " + (top ? top.className.split(",")[0] : "unknown");
-    el.confidence.textContent = "Model confidence " + conf + "% · rule match: " + (pick.matched || "none");
+    var confText = conf >= 15 ? "Model confidence " + conf + "%" : "Low model confidence (" + conf + "%)";
+    el.confidence.textContent = confText + " · rule match: " + (pick.matched || "none");
     el.guidance.textContent = cat.guidance;
     el.mapLink.href = overpassUrl(cat.overpass);
     el.result.hidden = false;
@@ -119,11 +133,15 @@
   }
 
   function overpassUrl(kind) {
-    var q = "";
-    if (kind === "recycling") q = 'node["amenity"="recycling"](26.1445,91.7362,26.25,91.85);';
-    else if (kind === "waste_disposal") q = 'node["amenity"="waste_disposal"](26.1445,91.7362,26.25,91.85);';
-    else q = 'node["landuse"="landfill"](26.1445,91.7362,26.25,91.85);';
-    return "https://www.openstreetmap.org/search?query=scrap%20dealer%20Guwahati";
+    var bbox = "(26.1445,91.7362,26.25,91.85)"; // Guwahati
+    var tags = {
+      recycling: 'node["amenity"="recycling"]',
+      compost: 'node["amenity"="compost"]',
+      waste_disposal: 'node["amenity"="waste_disposal"]',
+      landfill: 'node["landuse"="landfill"]'
+    };
+    var q = (tags[kind] || tags.landfill) + bbox + ";";
+    return "https://overpass-turbo.eu/?Q=" + encodeURIComponent(q) + "&R";
   }
 
   function grabFrame() {
@@ -160,7 +178,7 @@
     if (stream) return;
     setStatus("Starting camera…");
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-      .then(function (s) { stream = s; el.video.srcObject = s; el.snap.disabled = false; })
+      .then(function (s) { stream = s; el.video.srcObject = s; el.snap.disabled = false; showCamera(); })
       .catch(function (e) { setStatus("Camera unavailable (" + e.name + "). Use Upload a photo instead."); });
   });
 
@@ -175,7 +193,7 @@
     var f = el.file.files && el.file.files[0];
     if (!f) return;
     var img = new Image();
-    img.onload = function () { setStatus("Classifying…"); classifyImage(img).then(showResult).catch(function (e) { setStatus("Classification failed: " + e.message); }); };
+    img.onload = function () { showImage(img.src); setStatus("Classifying…"); classifyImage(img).then(showResult).catch(function (e) { setStatus("Classification failed: " + e.message); }); };
     img.onerror = function () { setStatus("Could not read that image."); };
     img.src = URL.createObjectURL(f);
   });
@@ -192,6 +210,20 @@
     localStorage.removeItem("wastelens.log");
     renderImpact();
   });
+
+  // ---- demo mode: ?demo=bottle|leaf auto-runs a classification (for the video)
+  var demo = new URLSearchParams(location.search).get("demo");
+  if (demo) {
+    var img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = function () {
+      showImage(img.src);
+      setStatus("Demo: classifying test image…");
+      classifyImage(img).then(showResult).catch(function (e) { setStatus("Demo failed: " + e.message); });
+    };
+    img.onerror = function () { setStatus("Demo image missing: " + demo); };
+    img.src = "test-" + demo + ".png";
+  }
 
   renderImpact();
 })();
