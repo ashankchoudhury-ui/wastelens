@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WasteLens Guwahati — know your waste</title>
+<meta name="description" content="Photograph an item, find out how Guwahati disposes of it, and locate the nearest scrap dealer or e-waste point.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>WasteLens<span>Guwahati</span></h1>
+  <p class="tag">Photograph it. Know your bin. Find the buyer.</p>
+</header>
+
+<main>
+  <section class="card" id="capture-card">
+    <video id="view" autoplay playsinline muted></video>
+    <canvas id="frame" hidden></canvas>
+    <div class="controls">
+      <button id="start" class="primary">Start camera</button>
+      <button id="snap" class="primary" disabled>Classify</button>
+      <label class="upload">
+        <input type="file" id="file" accept="image/*" hidden>
+        <span>Upload a photo</span>
+      </label>
+    </div>
+    <p id="status" role="status">Model loads on first use. Everything runs on your phone.</p>
+  </section>
+
+  <section class="card result" id="result" hidden>
+    <div class="badge" id="badge">—</div>
+    <h2 id="label">—</h2>
+    <p id="confidence">—</p>
+    <p id="guidance">—</p>
+    <div class="actions">
+      <a id="map-link" class="primary" href="#" target="_blank" rel="noopener">Find nearest scrap dealer</a>
+      <button id="save" class="ghost">Log this scan</button>
+    </div>
+  </section>
+
+  <section class="card" id="impact">
+    <h2>Your impact log</h2>
+    <p id="impact-line">No scans logged yet.</p>
+    <button id="clear" class="ghost small">Clear log</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
